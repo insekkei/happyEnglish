@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>英语绘本打卡</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div>
+        <h1>英语绘本打卡</h1>
+        <p class="sub">
+          海尼曼 · 兰登分级英语 · 牛津树 · First I Can Read Book<br />
+          每读完一本，即可获得该级别对应的积分
+        </p>
+      </div>
+      <div class="stats">
+        <button class="btn exchange-entry" id="btnExchange" title="兑换零花钱">
+          <span class="entry-ico">☆</span>
+          <span class="entry-txt">兑换<small>10 积分 = 1 元</small></span>
+        </button>
+        <div class="stat clickable" id="statScore" title="查看全部打卡历史">
+          <span class="stat-num" id="statScoreNum">0</span>
+          <span class="stat-label">累计积分</span>
+        </div>
+        <div class="stat clickable" id="statBooks" title="查看每个系列每个级别的打卡本数">
+          <span class="stat-num" id="statBooksNum">0</span>
+          <span class="stat-label">累计本数</span>
+        </div>
+        <div class="stat today clickable" id="statToday" title="查看今日打卡记录">
+          <span class="stat-num" id="statTodayNum">0</span>
+          <span class="stat-label">今日打卡</span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs" aria-label="系列切换"></nav>
+
+    <main id="board"></main>
+
+  </div>
+
+  <div class="modal" id="exchangeModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>积分兑换</h3>
+        <button class="btn ghost-x" id="exchangeClose" aria-label="关闭">✕</button>
+      </div>
+      <div class="ex-body">
+        <div class="ex-avail">
+          可兑换积分 <b id="exAvail">0</b>
+          <span class="ex-rate">10 积分 = 1 元</span>
+        </div>
+        <div class="ex-tip">按住鼠标拖过星星圈选，每颗星代表 10 积分（即 1 元），只能整颗整颗地选</div>
+        <div class="star-pad" id="starPad"></div>
+        <div class="ex-sel">
+          <span>已选 <b id="exSelPts">0</b> 积分 ≈ <b id="exSelYuan">0</b> 元</span>
+          <span class="ex-btnwrap">
+            <button class="btn ci-confirm" id="btnDoExchange" disabled>兑换</button>
+            <span class="popover" id="exPop">
+              确认兑换 <b id="exPopPts"></b> 积分，换取 <b id="exPopYuan"></b> 元零花钱？
+              <span class="pop-btns">
+                <button class="btn ci-confirm pop-ok" id="exPopOk">确认</button>
+                <button class="btn pop-cancel" id="exPopCancel">取消</button>
+              </span>
+            </span>
+          </span>
+        </div>
+        <div class="ex-history">
+          <div class="ex-hist-head">
+            <h4>兑换历史</h4>
+            <span id="exSum"></span>
+          </div>
+          <div id="exList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="historyModal">
+    <div class="modal-box modal-wide">
+      <div class="history-head">
+        <h2>打卡历史</h2>
+        <button class="btn ghost-x" id="historyClose" aria-label="关闭">✕</button>
+      </div>
+      <div class="history-toolbar">
+        <label class="fld">
+          <span>日期</span>
+          <input type="date" id="filterDate" />
+        </label>
+        <label class="fld">
+          <span>系列</span>
+          <select id="filterSeries"><option value="">全部系列</option></select>
+        </label>
+        <label class="fld">
+          <span>操作</span>
+          <select id="filterType">
+            <option value="">全部</option>
+            <option value="1">仅打卡</option>
+            <option value="-1">仅撤销</option>
+          </select>
+        </label>
+        <button class="btn" id="btnToday">只看今天</button>
+        <button class="btn" id="btnClearFilter">重置</button>
+        <button class="btn" id="btnExport">导出 CSV</button>
+        <button class="btn reset" id="btnReset">清空记录</button>
+      </div>
+      <div class="history-summary" id="historySummary"></div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="booksModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>各系列打卡本数</h3>
+        <div class="modal-total">
+          共 <b id="booksDetailTotal">0</b> 本
+          <button class="btn ghost-x" id="booksModalClose" aria-label="关闭">✕</button>
+        </div>
+      </div>
+      <div class="books-detail" id="booksDetail"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="checkinModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="ciTitle">打卡</h3>
+        <button class="btn ghost-x" id="ciClose" aria-label="关闭">✕</button>
+      </div>
+      <div class="ci-body">
+        <label class="ci-label" for="ciBook">书名</label>
+        <input type="text" id="ciBook" placeholder="例如：The Big Red Barn" autocomplete="off" />
+        <div class="ci-dup" id="ciDup"></div>
+
+        <div class="ci-rules">
+          <b>积分规则</b>
+          <ul>
+            <li>同一本书第 1 次阅读：获得该级别基础分 <span id="ciBase">-</span> 分</li>
+            <li>第 2 次重复阅读：基础分 − 1，不足 1 分按 0.5 分计，即 <span id="ciSecond">-</span> 分</li>
+            <li>第 3 次及以上重复阅读：<b id="ciThird">-</b> 分（不高于第 2 次得分）</li>
+            <li>书名不区分大小写，在<b>本系列内</b>判断是否重复</li>
+          </ul>
+        </div>
+
+        <div class="ci-actions">
+          <button class="btn" id="ciCancel">取消</button>
+          <button class="btn primary ci-confirm" id="ciConfirm" disabled>确认打卡</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

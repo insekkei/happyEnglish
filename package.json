@@ -1,0 +1,9 @@
+{
+  "name": "local-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "本地静态网页服务（http://localhost:8888）",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
