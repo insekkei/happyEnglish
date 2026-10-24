@@ -35,11 +35,35 @@
         </div>
       </div>
     </header>
+    <div class="stats stats-mobile">
+      <button class="btn exchange-entry" id="btnExchangeM" title="兑换零花钱">
+        <span class="entry-ico">☆</span>
+        <span class="entry-txt">兑换<small>10 分 = 1 元</small></span>
+      </button>
+      <div class="stat clickable" id="statScoreM" title="查看全部打卡历史">
+        <span class="stat-num" id="statScoreNumM">0</span>
+        <span class="stat-label">累计积分</span>
+      </div>
+      <div class="stat clickable" id="statBooksM" title="查看每个系列每个级别的打卡本数">
+        <span class="stat-num" id="statBooksNumM">0</span>
+        <span class="stat-label">累计本数</span>
+      </div>
+      <div class="stat today clickable" id="statTodayM" title="查看今日打卡记录">
+        <span class="stat-num" id="statTodayNumM">0</span>
+        <span class="stat-label">今日打卡</span>
+      </div>
+    </div>
 
     <nav class="tabs" id="tabs" aria-label="系列切换"></nav>
 
     <main id="board"></main>
 
+    <nav class="tabbar" id="tabbar">
+      <button class="tb-item" data-act="exchange"><span class="tb-ico">☆</span><span class="tb-txt">兑换</span></button>
+      <button class="tb-item" data-act="score"><span class="tb-ico">◈</span><span class="tb-txt">积分</span></button>
+      <button class="tb-item" data-act="books"><span class="tb-ico">▣</span><span class="tb-txt">本数</span></button>
+      <button class="tb-item" data-act="today"><span class="tb-ico">✓</span><span class="tb-txt">今日</span></button>
+    </nav>
   </div>
 
   <div class="modal" id="exchangeModal">
@@ -105,8 +129,9 @@
         <button class="btn" id="btnToday">只看今天</button>
         <button class="btn" id="btnClearFilter">重置</button>
         <button class="btn" id="btnExport">导出 CSV</button>
-        <button class="btn reset" id="btnReset">清空记录</button>
-      </div>
+        <button class="btn" id="btnImport">导入 CSV</button>
+        <input type="file" id="importFile" accept=".csv,text/csv" style="display:none" />
+        </div>
       <div class="history-summary" id="historySummary"></div>
       <div class="history-list" id="historyList"></div>
     </div>

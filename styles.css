@@ -61,6 +61,38 @@ body {
 }
 
 .stats { display: flex; gap: 12px; }
+.stats-mobile { display: none; }
+
+/* ---------- 移动端底栏 ---------- */
+.tabbar {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+.tb-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  color: var(--muted);
+  cursor: pointer;
+}
+.tb-item:active { opacity: 0.7; }
+.tb-ico { font-size: 19px; line-height: 1; color: var(--accent); }
+.tb-txt { font-size: 10.5px; }
+.tb-item[data-act="exchange"] .tb-ico { color: #e07c12; }
 .stat {
   min-width: 96px;
   padding: 14px 18px;
@@ -692,13 +724,24 @@ body {
 }
 
 @media (max-width: 560px) {
-  body { padding: 28px 16px 48px; }
+  body { padding: 28px 16px calc(76px + env(safe-area-inset-bottom, 0px)); }
   .hero h1 { font-size: 24px; }
-  .stats { width: 100%; }
-  .stat { flex: 1; min-width: 0; padding: 12px 8px; }
+  /* 顶部统计卡隐藏，改用底栏 */
+  .stats { display: none; }
+  .stats-mobile { display: none; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
   .row { grid-template-columns: 58px minmax(0, 1fr) 62px 48px; }
   .c-book, .c-op { display: none; }
   .modal { padding: 4vh 12px 32px; }
   .modal-wide { padding: 16px 14px 8px; }
+  /* 底栏 */
+  .tabbar { display: flex; }
+  /* Tab 紧凑化：去圆点、去得分、减内边距 */
+  .tabs { gap: 5px; margin-bottom: 18px; }
+  .tab { padding: 4px 9px; gap: 0; font-size: 12px; white-space: nowrap; }
+  .tab[data-tab="all"] { display: none; }
+  .tab .dot { display: none; }
+  .tab .tab-score { display: none; }
+  /* 隐藏系列区块标题（名称/英文/说明），保留系列积分 */
+  .series-head h2, .series-head .en, .series-head .note { display: none; }
 }

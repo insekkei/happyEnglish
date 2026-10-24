@@ -26,6 +26,7 @@ window.SERIES_DATA = [
   {
     id: 'random-house',
     name: '兰登分级英语',
+    short: '兰登',
     en: 'Step into Reading',
     note: '数字越大，难度越大',
     levels: [
@@ -74,6 +75,7 @@ window.SERIES_DATA = [
   {
     id: 'raz',
     name: 'RAZ Reading',
+    short: 'RAZ',
     en: 'Reading A-Z',
     note: '字母越靠后，难度越大',
     levels: [
@@ -109,6 +111,7 @@ window.SERIES_DATA = [
   {
     id: 'first-i-can-read',
     name: 'First I Can Read Book',
+    short: 'I Can Read',
     en: 'I Can Read!',
     note: '角色越靠后，难度越大',
     levels: [

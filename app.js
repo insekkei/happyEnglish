@@ -377,7 +377,7 @@
 
     tabsNav.appendChild(mk('all', '全部'));
     series.forEach(function (s) {
-      tabsNav.appendChild(mk(s.id, s.name, s.levels[0].color1, s.levels[s.levels.length - 1].color2));
+      tabsNav.appendChild(mk(s.id, s.short || s.name, s.levels[0].color1, s.levels[s.levels.length - 1].color2));
     });
   }
 
@@ -419,6 +419,11 @@
     savedTab = window.localStorage.getItem(TAB_KEY) || 'all';
   } catch (e) {
     savedTab = 'all';
+  }
+  // 移动端不展示「全部」，默认选中第一个系列
+  var isMobile = window.matchMedia && window.matchMedia('(max-width: 560px)').matches;
+  if (isMobile && (savedTab === 'all' || !document.querySelector('.tab[data-tab="' + savedTab + '"]'))) {
+    savedTab = series[0].id;
   }
 
   // ---------- 顶部统计 ----------
@@ -469,6 +474,9 @@
     document.getElementById('statScoreNum').textContent = fmtScore(totalScore);
     document.getElementById('statBooksNum').textContent = totalBooks;
     document.getElementById('statTodayNum').textContent = todayCount;
+    document.getElementById('statScoreNumM').textContent = fmtScore(totalScore);
+    document.getElementById('statBooksNumM').textContent = totalBooks;
+    document.getElementById('statTodayNumM').textContent = todayCount;
   }
 
   // ---------- 历史记录 ----------
@@ -765,6 +773,47 @@
     renderExchange();
     exModal.classList.add('open');
   });
+
+  // ---------- 移动端底栏与移动统计卡（与 PC 入口行为一致） ----------
+  function openBooksModal() {
+    renderBooksDetail();
+    document.getElementById('booksModal').classList.add('open');
+  }
+
+  document.getElementById('btnExchangeM').addEventListener('click', function () {
+    renderExchange();
+    exModal.classList.add('open');
+  });
+  document.getElementById('statScoreM').addEventListener('click', function () {
+    openHistory();
+  });
+  document.getElementById('statBooksM').addEventListener('click', openBooksModal);
+  document.getElementById('statTodayM').addEventListener('click', function () {
+    resetHistoryFilters();
+    filterDate.value = todayStr();
+    renderHistory();
+    historyModal.classList.add('open');
+  });
+
+  document.getElementById('tabbar').addEventListener('click', function (e) {
+    var item = e.target.closest ? e.target.closest('.tb-item') : null;
+    if (!item) return;
+    var act = item.getAttribute('data-act');
+    if (act === 'exchange') {
+      renderExchange();
+      exModal.classList.add('open');
+    } else if (act === 'score') {
+      openHistory();
+    } else if (act === 'books') {
+      openBooksModal();
+    } else if (act === 'today') {
+      resetHistoryFilters();
+      filterDate.value = todayStr();
+      renderHistory();
+      historyModal.classList.add('open');
+    }
+  });
+
   document.getElementById('exchangeClose').addEventListener('click', function () {
     exModal.classList.remove('open');
     hideExPop();
@@ -849,9 +898,18 @@
     commit();
     openHistory();
 
-    var statEl = document.getElementById('statScoreNum');
-    var rect = statEl.getBoundingClientRect();
-    popText(rect.left + rect.width / 2, rect.top, '+' + fmtScore(r.score) + ' 分');
+    // 飘字挂在可见的统计卡上（PC 或移动端），都不可见时挂在页面顶部中央
+    var statEl = document.querySelector('.stats:not([hidden]) #statScoreNum');
+    var top = 80;
+    var left = window.innerWidth / 2;
+    if (statEl) {
+      var rect = statEl.getBoundingClientRect();
+      if (rect.top > 0 && rect.top < window.innerHeight) {
+        top = rect.top;
+        left = rect.left + rect.width / 2;
+      }
+    }
+    popText(left, top, '+' + fmtScore(r.score) + ' 分');
   }
 
   document.getElementById('ciBook').addEventListener('input', updateCiPreview);
@@ -1054,10 +1112,159 @@
     URL.revokeObjectURL(url);
   });
 
-  document.getElementById('btnReset').addEventListener('click', function () {
-    if (!window.confirm('确定清空全部打卡记录吗？该操作不可恢复。')) return;
-    state = emptyState();
-    commit();
+  // ---------- 导入 CSV：还原另一台设备导出的记录 ----------
+  function parseCsvLine(line) {
+    var out = [];
+    var cur = '';
+    var inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (inQ) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; }
+          else inQ = false;
+        } else cur += ch;
+      } else if (ch === '"') {
+        inQ = true;
+      } else if (ch === ',') {
+        out.push(cur); cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out;
+  }
+
+  // 系列/级别名 -> levelKey 反查表
+  var nameToKey = {};
+  (function buildNameMap() {
+    Object.keys(levelMap).forEach(function (key) {
+      var ref = levelMap[key];
+      // 精确名与不带「Level」的简称都登记，导入更宽容
+      nameToKey[ref.series.name + ' · ' + ref.level.title] = key;
+      nameToKey[ref.series.name + ref.level.title] = key;
+      nameToKey[ref.series.name + '·' + ref.level.title] = key;
+      if (ref.level.title.indexOf('Level ') === 0) {
+        nameToKey[ref.series.name + ' · ' + ref.level.title.slice(6)] = key;
+      }
+    });
+  })();
+
+  function resolveKey(seriesName, levelTitle) {
+    var s = String(seriesName || '').trim();
+    var lv = String(levelTitle || '').trim();
+    var candidates = [
+      s + ' · ' + lv, s + lv, s + '·' + lv,
+    ];
+    if (lv.indexOf('Level ') === 0) candidates.push(s + ' · ' + lv.slice(6));
+    for (var i = 0; i < candidates.length; i++) {
+      if (nameToKey[candidates[i]]) return nameToKey[candidates[i]];
+    }
+    // 模糊兜底：系列名前缀 + 级别名包含
+    var keys = Object.keys(nameToKey);
+    for (var j = 0; j < keys.length; j++) {
+      if (keys[j].indexOf(s) === 0 && keys[j].indexOf(lv) >= 0) return nameToKey[keys[j]];
+    }
+    return null;
+  }
+
+  document.getElementById('btnImport').addEventListener('click', function () {
+    document.getElementById('importFile').value = '';
+    document.getElementById('importFile').click();
+  });
+
+  document.getElementById('importFile').addEventListener('change', function () {
+    var file = this.files && this.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var text = String(reader.result || '');
+      if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // 去 BOM
+      var lines = text.split(/\r\n|\n|\r/).filter(function (l) { return l.trim(); });
+      if (lines.length < 2) {
+        window.alert('文件内容为空或没有数据行');
+        return;
+      }
+
+      var head = parseCsvLine(lines[0]).map(function (h) { return h.trim(); });
+      var iDate = head.indexOf('日期');
+      var iTime = head.indexOf('时间');
+      var iTitle = head.indexOf('书名');
+      var iSeries = head.indexOf('系列');
+      var iLevel = head.indexOf('级别');
+      var iAct = head.indexOf('操作');
+      var iScore = head.indexOf('分值变化');
+      if (iDate < 0 || iSeries < 0 || iLevel < 0) {
+        window.alert('CSV 缺少必需列（日期 / 系列 / 级别），请使用本页面导出的文件');
+        return;
+      }
+
+      var added = 0;
+      var skipped = 0;
+      var duped = 0;
+      var errs = [];
+      // 已有记录的特征指纹，用于去重（同一文件重复导入不再产生重复数据）
+      var seen = {};
+      state.logs.forEach(function (l) {
+        seen[l.date + '|' + l.ts + '|' + (l.norm || '') + '|' + l.key + '|' + l.delta + '|' + l.score] = true;
+      });
+      for (var i = 1; i < lines.length; i++) {
+        var cols = parseCsvLine(lines[i]);
+        var date = (cols[iDate] || '').trim();
+        var seriesName = iSeries >= 0 ? (cols[iSeries] || '').trim() : '';
+        var levelTitle = iLevel >= 0 ? (cols[iLevel] || '').trim() : '';
+        var key = resolveKey(seriesName, levelTitle);
+        if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          skipped++;
+          errs.push('第 ' + (i + 1) + ' 行无法识别：' + seriesName + ' ' + levelTitle);
+          continue;
+        }
+        var isUndo = iAct >= 0 && String(cols[iAct] || '').indexOf('撤销') >= 0;
+        var delta = isUndo ? -1 : 1;
+        var score = 0;
+        if (iScore >= 0) {
+          score = parseFloat(String(cols[iScore] || '').replace(/[+−-]/g, ''));
+        }
+        if (isNaN(score) || score < 0) score = levelMap[key].level.score;
+
+        var ts = Date.parse(date + 'T00:00:00');
+        if (iTime >= 0) {
+          var tm = Date.parse(date + 'T' + (cols[iTime] || '').trim());
+          if (!isNaN(tm)) ts = tm;
+        }
+        if (isNaN(ts)) ts = Date.parse(date) || Date.now();
+
+        var sig = date + '|' + ts + '|' + normTitle(iTitle >= 0 ? cols[iTitle] : '') + '|' + key + '|' + delta + '|' + round1(score);
+        if (seen[sig]) { duped++; continue; }
+        seen[sig] = true;
+
+        state.logs.push({
+          id: nextId(),
+          key: key,
+          date: date,
+          ts: ts,
+          delta: delta,
+          score: round1(score),
+          title: iTitle >= 0 ? String(cols[iTitle] || '').trim() : '',
+          norm: normTitle(iTitle >= 0 ? cols[iTitle] : ''),
+        });
+        applyLog(state.logs[state.logs.length - 1], 1);
+        added++;
+      }
+
+      state.updated = todayStr();
+      save();
+      refresh();
+      renderHistory();
+      renderExchange();
+
+      var msg = '导入完成：新增 ' + added + ' 条';
+      if (duped) msg += '，跳过 ' + duped + ' 条重复记录';
+      if (skipped) msg += '，跳过 ' + skipped + ' 条无法识别的记录';
+      window.alert(msg + (errs.length ? '\n' + errs.slice(0, 5).join('\n') : ''));
+    };
+    reader.readAsText(file, 'utf-8');
   });
 
   refresh();
